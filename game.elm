@@ -5,6 +5,8 @@ import Keyboard
 -- import Markdown
 import Time exposing (..)
 import Window
+import String
+import List
 
 
 -- MODEL
@@ -12,11 +14,13 @@ import Window
 areaW = 400
 areaH = 300
 
+type alias Debuggable = Float
+
 type alias Input = (Time, { x:Int, y:Int }, Bool)
 
 type alias Model =
   { hero : Player
-  -- , stuff : [Thing]
+  -- , stuff : List Thing
   }
 
 type alias Player =
@@ -47,9 +51,12 @@ sign n =
 
 update : (Time, { x:Int, y:Int }, Bool) -> Model -> Model
 update (timeDelta, direction, isRunning) model =
-  { model |
-      hero = updatePlayer (timeDelta, direction, isRunning) hero
-  }
+  Model (updatePlayer (timeDelta, direction, isRunning) model.hero) -- (Player model.hero.x+1 model.hero.y model.hero.vx model.hero.vy model.hero.dir)
+  
+  
+  -- { model |
+  --     hero = updatePlayer (timeDelta, direction, isRunning) hero
+  -- }
 
 
 updatePlayer : (Time, { x:Int, y:Int }, Bool) -> Player -> Player
@@ -93,10 +100,22 @@ setDirection {x,y} model =
 updatePosition : Time -> Player -> Player
 updatePosition dt ({x,y,vx,vy} as model) =
   { model |
-      x = (x + dt * vx) |> clamp (-areaW/2) (areaW/2),
-      y = (y + dt * vy)
+       x = (x + dt * vx) |> clamp (-areaW/2) (areaW/2)
+     , y = (y + dt * vy)
   }
 
+
+debugexpr : (String, Debuggable) -> String
+debugexpr (name, expr) =
+  name ++ "=" ++ toString (round expr)
+
+debug : List (String, Debuggable) -> Form
+debug vars =
+  List.map debugexpr vars
+    |> String.join ", "
+    |> show
+    |> toForm
+    |> move (0, areaH/2 - 16)
 
 -- VIEW
 
@@ -117,7 +136,11 @@ view (w,h) model =
       , (toForm (image 22 28 src))
           |> rotate (degrees (vx * -5))
           |> move (x, -areaH/2 + 28)
-         -- , toForm <| show <| "y: " ++ toString (round y)
+      , debug [("y", y), ("x", x), ("dt", vy)]
+
+      -- , "y: " ++ toString (round y) ++ ",x: " ++ toString (round x)
+      --    |> toForm << show
+      --    |> move (0, areaH/2 - 16)
       -- , toForm (Markdown.toElement "Arrows to move<br/>Shift to run")
       --     |> move (70-areaW/2, 30-areaH/2)
       ]

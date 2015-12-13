@@ -6845,6 +6845,7 @@ Elm.Main.make = function (_elm) {
    $Maybe = Elm.Maybe.make(_elm),
    $Result = Elm.Result.make(_elm),
    $Signal = Elm.Signal.make(_elm),
+   $String = Elm.String.make(_elm),
    $Time = Elm.Time.make(_elm),
    $Window = Elm.Window.make(_elm);
    var _op = {};
@@ -6852,51 +6853,57 @@ Elm.Main.make = function (_elm) {
    var input = A2($Signal.sampleOn,
    delta,
    A4($Signal.map3,F3(function (v0,v1,v2) {    return {ctor: "_Tuple3",_0: v0,_1: v1,_2: v2};}),delta,$Keyboard.arrows,$Keyboard.shift));
-   var setDirection = F2(function (_p0,model) {    var _p1 = _p0;return _U.update(model,{dir: "west"});});
+   var debugexpr = function (_p0) {    var _p1 = _p0;return A2($Basics._op["++"],_p1._0,A2($Basics._op["++"],"=",$Basics.toString($Basics.round(_p1._1))));};
+   var setDirection = F2(function (_p2,model) {    var _p3 = _p2;return _U.update(model,{dir: "west"});});
    var sign = function (n) {    return _U.cmp(n,0) < 0 ? -1 : _U.cmp(n,0) > 0 ? 1 : 0;};
-   var newVelocity = F3(function (isRunning,_p2,model) {
-      var _p3 = _p2;
+   var newVelocity = F3(function (isRunning,_p4,model) {
+      var _p5 = _p4;
       var accel = 0.2;
       var drag = 0.4;
       var scale = 5;
       var newVel = function (n) {
          return _U.eq(n,0) ? model.vx - drag * sign(model.vx) : A3($Basics.clamp,0 - scale,scale,model.vx + accel * scale * $Basics.toFloat(n));
       };
-      return _U.update(model,{vx: newVel(_p3.x),vy: 1});
+      return _U.update(model,{vx: newVel(_p5.x),vy: 1});
    });
    var Player = F5(function (a,b,c,d,e) {    return {x: a,y: b,vx: c,vy: d,dir: e};});
    var hero = A5(Player,0,0,0,0,"south");
    var Model = function (a) {    return {hero: a};};
    var model = Model(hero);
    var areaH = 300;
+   var debug = function (vars) {
+      return A2($Graphics$Collage.move,
+      {ctor: "_Tuple2",_0: 0,_1: areaH / 2 - 16},
+      $Graphics$Collage.toForm($Graphics$Element.show(A2($String.join,", ",A2($List.map,debugexpr,vars)))));
+   };
    var areaW = 400;
-   var updatePosition = F2(function (dt,_p4) {
-      var _p5 = _p4;
-      return _U.update(_p5,{x: A3($Basics.clamp,(0 - areaW) / 2,areaW / 2,_p5.x + dt * _p5.vx),y: _p5.y + dt * _p5.vy});
-   });
-   var updatePlayer = F2(function (_p6,hero) {
+   var updatePosition = F2(function (dt,_p6) {
       var _p7 = _p6;
-      var _p8 = _p7._1;
-      return A2(updatePosition,_p7._0,A2(setDirection,_p8,A3(newVelocity,_p7._2,_p8,hero)));
+      return _U.update(_p7,{x: A3($Basics.clamp,(0 - areaW) / 2,areaW / 2,_p7.x + dt * _p7.vx),y: _p7.y + dt * _p7.vy});
    });
-   var update = F2(function (_p9,model) {
-      var _p10 = _p9;
-      return _U.update(model,{hero: A2(updatePlayer,{ctor: "_Tuple3",_0: _p10._0,_1: _p10._1,_2: _p10._2},hero)});
+   var updatePlayer = F2(function (_p8,hero) {
+      var _p9 = _p8;
+      var _p10 = _p9._1;
+      return A2(updatePosition,_p9._0,A2(setDirection,_p10,A3(newVelocity,_p9._2,_p10,hero)));
    });
-   var view = F2(function (_p11,model) {
+   var update = F2(function (_p11,model) {
       var _p12 = _p11;
-      var _p13 = model.hero;
-      var x = _p13.x;
-      var y = _p13.y;
-      var vx = _p13.vx;
-      var vy = _p13.vy;
-      var dir = _p13.dir;
+      return Model(A2(updatePlayer,{ctor: "_Tuple3",_0: _p12._0,_1: _p12._1,_2: _p12._2},model.hero));
+   });
+   var view = F2(function (_p13,model) {
+      var _p14 = _p13;
+      var _p15 = model.hero;
+      var x = _p15.x;
+      var y = _p15.y;
+      var vx = _p15.vx;
+      var vy = _p15.vy;
+      var dir = _p15.dir;
       var offset = $Basics.toFloat(0 - A2($Basics._op["%"],$Basics.round(y),areaH));
       var src = "/imgs/UFO.gif";
       var verb = _U.eq(vx,0) && _U.eq(vy,0) ? "stand" : "walk";
       return A4($Graphics$Element.container,
-      _p12._0,
-      _p12._1,
+      _p14._0,
+      _p14._1,
       $Graphics$Element.middle,
       A3($Graphics$Collage.collage,
       areaW,
@@ -6909,7 +6916,8 @@ Elm.Main.make = function (_elm) {
               $Graphics$Collage.toForm(A3($Graphics$Element.image,areaW,areaH,"/imgs/desert.png")))
               ,A2($Graphics$Collage.move,
               {ctor: "_Tuple2",_0: x,_1: (0 - areaH) / 2 + 28},
-              A2($Graphics$Collage.rotate,$Basics.degrees(vx * -5),$Graphics$Collage.toForm(A3($Graphics$Element.image,22,28,src))))])));
+              A2($Graphics$Collage.rotate,$Basics.degrees(vx * -5),$Graphics$Collage.toForm(A3($Graphics$Element.image,22,28,src))))
+              ,debug(_U.list([{ctor: "_Tuple2",_0: "y",_1: y},{ctor: "_Tuple2",_0: "x",_1: x},{ctor: "_Tuple2",_0: "dt",_1: vy}]))])));
    });
    var main = A3($Signal.map2,view,$Window.dimensions,A3($Signal.foldp,update,model,input));
    return _elm.Main.values = {_op: _op
@@ -6925,6 +6933,8 @@ Elm.Main.make = function (_elm) {
                              ,newVelocity: newVelocity
                              ,setDirection: setDirection
                              ,updatePosition: updatePosition
+                             ,debugexpr: debugexpr
+                             ,debug: debug
                              ,view: view
                              ,main: main
                              ,input: input
