@@ -22,7 +22,7 @@ type alias Debuggable = Float
 
 type alias Input = (Time, { x:Int, y:Int }, Bool)
 
-type ThingKind = Grow | Shrink
+type ThingKind = Grow | Shrink | Shroom
 type alias Thing = 
   { x : Float
   , y : Float
@@ -32,7 +32,7 @@ type alias Thing =
   }
 
 type alias Model =
-  { hero : Player
+  { player : Player
   , stuff : List Thing
   , ticks : Float
   }
@@ -46,11 +46,11 @@ type alias Player =
   }
 
 
-hero : Player
-hero =
+player : Player
+player =
   Player 0 0 0 0 1.0
 
-model = Model hero [] 0
+model = Model player [] 0
 
 sign : Float -> Float
 sign n =
@@ -66,7 +66,7 @@ sign n =
 update : Input -> Model -> Model
 update (timeDelta, direction, isRunning) model =
   let 
-      newplayer = updatePlayer (timeDelta, direction, isRunning) model.hero
+      newplayer = updatePlayer (timeDelta, direction, isRunning) model.player
       newstuff = model.stuff
         |> spawnStuff (model.ticks, timeDelta)
         |> moveStuff (timeDelta)
@@ -76,7 +76,7 @@ update (timeDelta, direction, isRunning) model =
         |> collide
   -- TODO why this no work
   -- { model |
-  --     hero = updatePlayer (timeDelta, direction, isRunning) hero
+  --     player = updatePlayer (timeDelta, direction, isRunning) player
   -- }
 
 
@@ -96,9 +96,14 @@ spawnThing seed =
   let
       (x, seed2) = generate (Random.float (-areaW/2) (areaW/2)) seed
       (vx, seed3) = generate (Random.float -5 5) seed2
-      (vy, seed4) = generate (Random.float 0 5) seed3
+      (vy, seed4) = generate (Random.float 2 8) seed3
+      (b, seed5) = generate (Random.int 0 2) seed4
+      kind = case b of
+        0 -> Grow
+        1 -> Shrink
+        _ -> Shroom
   in
-    Thing x (areaH*1.5) vx vy Grow
+    Thing x (areaH*1.5) vx vy kind
 
 
 moveStuff : (Time) -> List Thing -> List Thing
@@ -111,8 +116,8 @@ moveStuff (timeDelta) stuff =
 
 
 updatePlayer : Input -> Player -> Player
-updatePlayer (timeDelta, direction, isRunning) hero =
-  hero
+updatePlayer (timeDelta, direction, isRunning) player =
+  player
     |> newVelocity isRunning direction
     |> updatePosition timeDelta
 
@@ -122,9 +127,9 @@ newVelocity isRunning {x,y} model =
   let
     scale =
       -- if isRunning then 2 else 1
-      5
+      10
 
-    drag = 0.4
+    drag = 0.8
     accel = 0.2
 
     newVel n =
@@ -157,20 +162,28 @@ collide model =
   let
     overlap player thing =
       (abs (thing.x - player.x) < player.size*11) && (abs (thing.y - bottom) < player.size*14)
-    collision player stuff = 
-      List.any (overlap player) stuff
+    colliders player stuff =
+      List.filter (overlap player) stuff
+    noncolliders player stuff =
+      List.filter (not << overlap player) stuff
+    growOrShrink multiplier player =
+      { player | size = player.size * multiplier }
     handleCollision player stuff =
-      if collision model.hero model.stuff then 
-        (\h -> {h | size = h.size*1.5}) 
-      else 
-        (\h -> h)
+      case (colliders player stuff |> List.head) of
+        Nothing -> growOrShrink 1
+        Just thing -> case thing.kind of
+          Grow -> growOrShrink 1.5
+          Shrink -> growOrShrink 0.5
+          Shroom -> growOrShrink 1
 
-    grow = handleCollision model.hero model.stuff
-    newstuff = model.stuff |> List.filter (not << overlap model.hero)
+    player = model.player
+    stuff = model.stuff
+
+    affect = handleCollision player stuff
   in
     { model |
-         hero = grow model.hero
-       , stuff = newstuff
+         player = affect player
+       , stuff = noncolliders player stuff
     }
 
 
@@ -191,38 +204,42 @@ debug vars =
 view : (Int,Int) -> Model -> Element
 view (w,h) model =
   let
-    verb = if vx == 0 && vy == 0 then "stand" else "walk"
-    src = "/imgs/UFO.gif"
     offset = toFloat -(round y % areaH)
-    {x,y,vx,vy,size} = model.hero
+    {x,y,vx,vy,size} = model.player
   in
     container w h middle <|
     collage areaW areaH <|
       -- Background
-      [ toForm (image areaW areaH "/imgs/desert.png")
+      [ toForm (tiledImage areaW areaH "imgs/desert.png")
          |> move (0, offset)
-      , toForm (image areaW areaH "/imgs/desert.png")
+      , toForm (tiledImage areaW areaH "imgs/desert.png")
          |> move (0, areaH + offset)
 
       -- Player
-      , (toForm (image 22 28 src))
+      , (toForm (image 22 28 "imgs/player.png"))
           |> scale size
           |> rotate (degrees (vx * -5))
           |> move (x, bottom)
 
-      -- , debug [("x", model.stuff |> map .x |> List.head |> Maybe.withDefault 0)]
-      , debug [("y", y)]
+      -- , debug [("x", x), ("y", y), ("ticks", model.ticks)]
 
-      ] ++ (drawStuff model.stuff)
+      ] ++ (drawStuff model.ticks model.stuff)
 
-drawStuff : List Thing -> List Form
-drawStuff stuff =
-  stuff |> List.map drawThing
+drawStuff : Float -> List Thing -> List Form
+drawStuff ticks stuff =
+  stuff |> List.map (drawThing ticks)
 
-drawThing : Thing -> Form
-drawThing {x, y, kind} =
-  toForm (image 32 32 "/imgs/plus.png")
-    |> move (x, y)
+drawThing : Float -> Thing -> Form
+drawThing ticks {x, y, kind} =
+  let
+    img = case kind of
+        Grow -> "plus"
+        Shrink -> "minus"
+        Shroom -> "shroom"
+  in
+    toForm (image 32 32 ("imgs/" ++ img ++ ".png"))
+      |> rotate (degrees ticks)
+      |> move (x, y)
 
 
 -- SIGNALS

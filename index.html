@@ -7080,50 +7080,64 @@ Elm.Main.make = function (_elm) {
    var input = A2($Signal.sampleOn,
    delta,
    A4($Signal.map3,F3(function (v0,v1,v2) {    return {ctor: "_Tuple3",_0: v0,_1: v1,_2: v2};}),delta,$Keyboard.arrows,$Keyboard.shift));
-   var drawThing = function (_p0) {
+   var drawThing = F2(function (ticks,_p0) {
       var _p1 = _p0;
-      return A2($Graphics$Collage.move,{ctor: "_Tuple2",_0: _p1.x,_1: _p1.y},$Graphics$Collage.toForm(A3($Graphics$Element.image,32,32,"/imgs/plus.png")));
-   };
-   var drawStuff = function (stuff) {    return A2($List.map,drawThing,stuff);};
-   var debugexpr = function (_p2) {    var _p3 = _p2;return A2($Basics._op["++"],_p3._0,A2($Basics._op["++"],"=",$Basics.toString(_p3._1)));};
+      var img = function () {    var _p2 = _p1.kind;switch (_p2.ctor) {case "Grow": return "plus";case "Shrink": return "minus";default: return "shroom";}}();
+      return A2($Graphics$Collage.move,
+      {ctor: "_Tuple2",_0: _p1.x,_1: _p1.y},
+      A2($Graphics$Collage.rotate,
+      $Basics.degrees(ticks),
+      $Graphics$Collage.toForm(A3($Graphics$Element.image,32,32,A2($Basics._op["++"],"imgs/",A2($Basics._op["++"],img,".png"))))));
+   });
+   var drawStuff = F2(function (ticks,stuff) {    return A2($List.map,drawThing(ticks),stuff);});
+   var debugexpr = function (_p3) {    var _p4 = _p3;return A2($Basics._op["++"],_p4._0,A2($Basics._op["++"],"=",$Basics.toString(_p4._1)));};
    var moveStuff = F2(function (timeDelta,stuff) {
       return A2($List.map,function (thing) {    return _U.update(thing,{y: thing.y - thing.vy * timeDelta});},stuff);
    });
    var sign = function (n) {    return _U.cmp(n,0) < 0 ? -1 : _U.cmp(n,0) > 0 ? 1 : 0;};
-   var newVelocity = F3(function (isRunning,_p4,model) {
-      var _p5 = _p4;
+   var newVelocity = F3(function (isRunning,_p5,model) {
+      var _p6 = _p5;
       var accel = 0.2;
-      var drag = 0.4;
-      var scale = 5;
+      var drag = 0.8;
+      var scale = 10;
       var newVel = function (n) {
          return _U.eq(n,0) ? model.vx - drag * sign(model.vx) : A3($Basics.clamp,0 - scale,scale,model.vx + accel * scale * $Basics.toFloat(n));
       };
-      return _U.update(model,{vx: newVel(_p5.x),vy: 1});
+      return _U.update(model,{vx: newVel(_p6.x),vy: 1});
    });
    var Player = F5(function (a,b,c,d,e) {    return {x: a,y: b,vx: c,vy: d,size: e};});
-   var hero = A5(Player,0,0,0,0,1.0);
-   var Model = F3(function (a,b,c) {    return {hero: a,stuff: b,ticks: c};});
-   var model = A3(Model,hero,_U.list([]),0);
+   var player = A5(Player,0,0,0,0,1.0);
+   var Model = F3(function (a,b,c) {    return {player: a,stuff: b,ticks: c};});
+   var model = A3(Model,player,_U.list([]),0);
    var Thing = F5(function (a,b,c,d,e) {    return {x: a,y: b,vx: c,vy: d,kind: e};});
+   var Shroom = {ctor: "Shroom"};
    var Shrink = {ctor: "Shrink"};
    var Grow = {ctor: "Grow"};
    var areaH = 600;
    var bottom = (0 - areaH) / 2 + 28;
    var collide = function (model) {
+      var stuff = model.stuff;
+      var player = model.player;
+      var growOrShrink = F2(function (multiplier,player) {    return _U.update(player,{size: player.size * multiplier});});
       var overlap = F2(function (player,thing) {
          return _U.cmp($Basics.abs(thing.x - player.x),player.size * 11) < 0 && _U.cmp($Basics.abs(thing.y - bottom),player.size * 14) < 0;
       });
-      var collision = F2(function (player,stuff) {    return A2($List.any,overlap(player),stuff);});
+      var colliders = F2(function (player,stuff) {    return A2($List.filter,overlap(player),stuff);});
       var handleCollision = F2(function (player,stuff) {
-         return A2(collision,model.hero,model.stuff) ? function (h) {
-            return _U.update(h,{size: h.size * 1.5});
-         } : function (h) {
-            return h;
-         };
+         var _p7 = $List.head(A2(colliders,player,stuff));
+         if (_p7.ctor === "Nothing") {
+               return growOrShrink(1);
+            } else {
+               var _p8 = _p7._0.kind;
+               switch (_p8.ctor)
+               {case "Grow": return growOrShrink(1.5);
+                  case "Shrink": return growOrShrink(0.5);
+                  default: return growOrShrink(1);}
+            }
       });
-      var grow = A2(handleCollision,model.hero,model.stuff);
-      var newstuff = A2($List.filter,function (_p6) {    return $Basics.not(A2(overlap,model.hero,_p6));},model.stuff);
-      return _U.update(model,{hero: grow(model.hero),stuff: newstuff});
+      var affect = A2(handleCollision,player,stuff);
+      var noncolliders = F2(function (player,stuff) {    return A2($List.filter,function (_p9) {    return $Basics.not(A2(overlap,player,_p9));},stuff);});
+      return _U.update(model,{player: affect(player),stuff: A2(noncolliders,player,stuff)});
    };
    var debug = function (vars) {
       return A2($Graphics$Collage.move,
@@ -7132,51 +7146,53 @@ Elm.Main.make = function (_elm) {
    };
    var areaW = 800;
    var spawnThing = function (seed) {
-      var _p7 = A2($Random.generate,A2($Random.$float,(0 - areaW) / 2,areaW / 2),seed);
-      var x = _p7._0;
-      var seed2 = _p7._1;
-      var _p8 = A2($Random.generate,A2($Random.$float,-5,5),seed2);
-      var vx = _p8._0;
-      var seed3 = _p8._1;
-      var _p9 = A2($Random.generate,A2($Random.$float,0,5),seed3);
-      var vy = _p9._0;
-      var seed4 = _p9._1;
-      return A5(Thing,x,areaH * 1.5,vx,vy,Grow);
+      var _p10 = A2($Random.generate,A2($Random.$float,(0 - areaW) / 2,areaW / 2),seed);
+      var x = _p10._0;
+      var seed2 = _p10._1;
+      var _p11 = A2($Random.generate,A2($Random.$float,-5,5),seed2);
+      var vx = _p11._0;
+      var seed3 = _p11._1;
+      var _p12 = A2($Random.generate,A2($Random.$float,2,8),seed3);
+      var vy = _p12._0;
+      var seed4 = _p12._1;
+      var _p13 = A2($Random.generate,A2($Random.$int,0,2),seed4);
+      var b = _p13._0;
+      var seed5 = _p13._1;
+      var kind = function () {    var _p14 = b;switch (_p14) {case 0: return Grow;case 1: return Shrink;default: return Shroom;}}();
+      return A5(Thing,x,areaH * 1.5,vx,vy,kind);
    };
-   var spawnStuff = F2(function (_p10,stuff) {
-      var _p11 = _p10;
-      var _p12 = A2($Random.generate,A2($Random.$float,0,100),$Random.initialSeed($Basics.round(_p11._0)));
-      var roll = _p12._0;
-      var seed = _p12._1;
-      return _U.cmp(roll,_p11._1) < 0 ? A2($List._op["::"],spawnThing(seed),stuff) : stuff;
+   var spawnStuff = F2(function (_p15,stuff) {
+      var _p16 = _p15;
+      var _p17 = A2($Random.generate,A2($Random.$float,0,100),$Random.initialSeed($Basics.round(_p16._0)));
+      var roll = _p17._0;
+      var seed = _p17._1;
+      return _U.cmp(roll,_p16._1) < 0 ? A2($List._op["::"],spawnThing(seed),stuff) : stuff;
    });
-   var updatePosition = F2(function (dt,_p13) {
-      var _p14 = _p13;
-      return _U.update(_p14,{x: A3($Basics.clamp,(0 - areaW) / 2,areaW / 2,_p14.x + dt * _p14.vx),y: _p14.y + dt * _p14.vy});
+   var updatePosition = F2(function (dt,_p18) {
+      var _p19 = _p18;
+      return _U.update(_p19,{x: A3($Basics.clamp,(0 - areaW) / 2,areaW / 2,_p19.x + dt * _p19.vx),y: _p19.y + dt * _p19.vy});
    });
-   var updatePlayer = F2(function (_p15,hero) {    var _p16 = _p15;return A2(updatePosition,_p16._0,A3(newVelocity,_p16._2,_p16._1,hero));});
+   var updatePlayer = F2(function (_p20,player) {    var _p21 = _p20;return A2(updatePosition,_p21._0,A3(newVelocity,_p21._2,_p21._1,player));});
    var isOnScreen = F2(function (player,entity) {    return _U.cmp(entity.y,(0 - areaW) / 2) > 0;});
-   var update = F2(function (_p17,model) {
-      var _p18 = _p17;
-      var _p19 = _p18._0;
-      var newplayer = A2(updatePlayer,{ctor: "_Tuple3",_0: _p19,_1: _p18._1,_2: _p18._2},model.hero);
-      var newstuff = A2($List.filter,isOnScreen(newplayer),A2(moveStuff,_p19,A2(spawnStuff,{ctor: "_Tuple2",_0: model.ticks,_1: _p19},model.stuff)));
-      return collide(A3(Model,newplayer,newstuff,model.ticks + $Time.inMilliseconds(_p19)));
+   var update = F2(function (_p22,model) {
+      var _p23 = _p22;
+      var _p24 = _p23._0;
+      var newplayer = A2(updatePlayer,{ctor: "_Tuple3",_0: _p24,_1: _p23._1,_2: _p23._2},model.player);
+      var newstuff = A2($List.filter,isOnScreen(newplayer),A2(moveStuff,_p24,A2(spawnStuff,{ctor: "_Tuple2",_0: model.ticks,_1: _p24},model.stuff)));
+      return collide(A3(Model,newplayer,newstuff,model.ticks + $Time.inMilliseconds(_p24)));
    });
-   var view = F2(function (_p20,model) {
-      var _p21 = _p20;
-      var _p22 = model.hero;
-      var x = _p22.x;
-      var y = _p22.y;
-      var vx = _p22.vx;
-      var vy = _p22.vy;
-      var size = _p22.size;
+   var view = F2(function (_p25,model) {
+      var _p26 = _p25;
+      var _p27 = model.player;
+      var x = _p27.x;
+      var y = _p27.y;
+      var vx = _p27.vx;
+      var vy = _p27.vy;
+      var size = _p27.size;
       var offset = $Basics.toFloat(0 - A2($Basics._op["%"],$Basics.round(y),areaH));
-      var src = "/imgs/UFO.gif";
-      var verb = _U.eq(vx,0) && _U.eq(vy,0) ? "stand" : "walk";
       return A4($Graphics$Element.container,
-      _p21._0,
-      _p21._1,
+      _p26._0,
+      _p26._1,
       $Graphics$Element.middle,
       A3($Graphics$Collage.collage,
       areaW,
@@ -7184,17 +7200,16 @@ Elm.Main.make = function (_elm) {
       A2($Basics._op["++"],
       _U.list([A2($Graphics$Collage.move,
               {ctor: "_Tuple2",_0: 0,_1: offset},
-              $Graphics$Collage.toForm(A3($Graphics$Element.image,areaW,areaH,"/imgs/desert.png")))
+              $Graphics$Collage.toForm(A3($Graphics$Element.tiledImage,areaW,areaH,"imgs/desert.png")))
               ,A2($Graphics$Collage.move,
               {ctor: "_Tuple2",_0: 0,_1: areaH + offset},
-              $Graphics$Collage.toForm(A3($Graphics$Element.image,areaW,areaH,"/imgs/desert.png")))
+              $Graphics$Collage.toForm(A3($Graphics$Element.tiledImage,areaW,areaH,"imgs/desert.png")))
               ,A2($Graphics$Collage.move,
               {ctor: "_Tuple2",_0: x,_1: bottom},
               A2($Graphics$Collage.rotate,
               $Basics.degrees(vx * -5),
-              A2($Graphics$Collage.scale,size,$Graphics$Collage.toForm(A3($Graphics$Element.image,22,28,src)))))
-              ,debug(_U.list([{ctor: "_Tuple2",_0: "y",_1: y}]))]),
-      drawStuff(model.stuff))));
+              A2($Graphics$Collage.scale,size,$Graphics$Collage.toForm(A3($Graphics$Element.image,22,28,"imgs/player.png")))))]),
+      A2(drawStuff,model.ticks,model.stuff))));
    });
    var main = A3($Signal.map2,view,$Window.dimensions,A3($Signal.foldp,update,model,input));
    return _elm.Main.values = {_op: _op
@@ -7203,10 +7218,11 @@ Elm.Main.make = function (_elm) {
                              ,bottom: bottom
                              ,Grow: Grow
                              ,Shrink: Shrink
+                             ,Shroom: Shroom
                              ,Thing: Thing
                              ,Model: Model
                              ,Player: Player
-                             ,hero: hero
+                             ,player: player
                              ,model: model
                              ,sign: sign
                              ,update: update
